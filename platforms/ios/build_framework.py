@@ -130,6 +130,7 @@ class Builder:
                 cmake_flags.append("-DCMAKE_OSX_SYSROOT=%s" % sdk_path)
                 cmake_flags.append("-DCMAKE_CXX_COMPILER_WORKS=TRUE")
                 cmake_flags.append("-DCMAKE_C_COMPILER_WORKS=TRUE")
+
             self.buildOne(target[0], target[1], main_build_dir, cmake_flags)
 
             if not self.dynamic:
@@ -281,6 +282,7 @@ class Builder:
         print("CMake")
         print("=================================")
         print("")
+        print(' '.join(cmakecmd))
         execute(cmakecmd, cwd = builddir)
         print("")
         print("=================================")
@@ -293,6 +295,8 @@ class Builder:
         if os.path.isdir(clean_dir):
             shutil.rmtree(clean_dir)
         buildcmd = self.getBuildCommand(arch, target)
+        print(' '.join(buildcmd))
+
         execute(buildcmd + ["-target", "ALL_BUILD", "build"], cwd = builddir)
         execute(["cmake", "-DBUILD_TYPE=%s" % self.getConfiguration(), "-P", "cmake_install.cmake"], cwd = builddir)
         if self.build_objc_wrapper:

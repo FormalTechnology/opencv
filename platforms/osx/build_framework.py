@@ -4,13 +4,14 @@ The script builds OpenCV.framework for OSX.
 """
 
 from __future__ import print_function
-import os, os.path, sys, argparse, traceback, multiprocessing
+import os, os.path, re, shutil, sys, argparse, traceback, multiprocessing
+from distutils.dir_util import copy_tree
 
 # import common code
 sys.path.insert(0, os.path.abspath(os.path.abspath(os.path.dirname(__file__))+'/../ios'))
 from build_framework import Builder
 sys.path.insert(0, os.path.abspath(os.path.abspath(os.path.dirname(__file__))+'/../apple'))
-from cv_build_utils import print_error, get_cmake_version
+from cv_build_utils import execute, print_error, get_cmake_version
 
 MACOSX_DEPLOYMENT_TARGET='10.12'  # default, can be changed via command line options or environment variable
 
@@ -54,6 +55,98 @@ class OSXBuilder(Builder):
     def getInfoPlist(self, builddirs):
         return os.path.join(builddirs[0], "osx", "Info.plist")
 
+    def makeFramework(self, outdir, builddirs):
+        name = self.framework_name
+
+        # set the current dir to the dst root
+        framework_dir = os.path.join(outdir, "%s.framework" % name)
+        if os.path.isdir(framework_dir):
+            shutil.rmtree(framework_dir)
+        os.makedirs(framework_dir)
+
+        if not self.dynamic:
+            dstdir = framework_dir
+        else:
+            dstdir = os.path.join(framework_dir, "Versions", "A")
+
+        # copy headers from one of build folders
+        shutil.copytree(os.path.join(builddirs[0], "install", "include", "opencv2"), os.path.join(dstdir, "Headers"))
+
+        # always rename header includes
+        fwk_header_re = re.compile(r'#\s*include\s+["<]opencv2/([\w./]+\.h[p]{0,2})[">]')
+        local_header_re = re.compile(r'#\s*include\s+"([\w.]+\.h[p]{0,2})"')
+
+        header_dir = os.path.join(dstdir, "Headers")
+
+        for dirname, dirs, files in os.walk(header_dir):
+            relpath = os.path.relpath(dirname, header_dir)
+            for filename in files:
+                filepath = os.path.join(dirname, filename)
+                with open(filepath) as file:
+                    body = file.read()
+                body = fwk_header_re.sub(r'#include <%s/\1>' % (name), body)
+                if relpath != '.':
+                    body = local_header_re.sub(r'#include <%s/%s/\1>' % (name, relpath), body)
+                else:
+                    body = local_header_re.sub(r'#include <%s/\1>' % (name), body)
+                with open(filepath, "w") as file:
+                    file.write(body)
+
+        if self.build_objc_wrapper:
+            copy_tree(os.path.join(builddirs[0], "install", "lib", name + ".framework", "Headers"), os.path.join(dstdir, "Headers"))
+            platform_name_map = {
+                    "arm": "armv7-apple-ios",
+                    "arm64": "arm64-apple-ios",
+                    "i386": "i386-apple-ios-simulator",
+                    "x86_64": "x86_64-apple-ios-simulator",
+                } if builddirs[0].find("iphone") != -1 else {
+                    "x86_64": "x86_64-apple-macos",
+                    "arm64": "arm64-apple-macos",
+                }
+
+            for d in builddirs:
+                copy_tree(os.path.join(d, "install", "lib", name + ".framework", "Modules"), os.path.join(dstdir, "Modules"))
+
+            for dirname, dirs, files in os.walk(os.path.join(dstdir, "Modules")):
+                for filename in files:
+                    filestem = os.path.splitext(filename)[0]
+                    fileext = os.path.splitext(filename)[1]
+                    if filestem in platform_name_map:
+                        os.rename(os.path.join(dirname, filename), os.path.join(dirname, platform_name_map[filestem] + fileext))
+
+        # make universal static lib
+        if self.dynamic:
+            libs = [os.path.join(d, "install", "lib", name + ".framework", name) for d in builddirs]
+        else:
+            libs = [os.path.join(d, "lib", self.getConfiguration(), "libopencv_merged.a") for d in builddirs]
+        lipocmd = ["lipo", "-create"]
+        lipocmd.extend(libs)
+        lipocmd.extend(["-o", os.path.join(dstdir, name)])
+        print("Creating universal library from:\n\t%s" % "\n\t".join(libs), file=sys.stderr)
+        execute(lipocmd)
+
+        # static framework has different structure, just copy the Plist directly
+        if not self.dynamic:
+            resdir = dstdir
+            shutil.copyfile(self.getInfoPlist(builddirs), os.path.join(resdir, "Info.plist"))
+        else:
+            # copy Info.plist
+            resdir = os.path.join(dstdir, "Resources")
+            os.makedirs(resdir)
+            shutil.copyfile(self.getInfoPlist(builddirs), os.path.join(resdir, "Info.plist"))
+
+            # make symbolic links
+            links = [
+                (["A"], ["Versions", "Current"]),
+                (["Versions", "Current", "Headers"], ["Headers"]),
+                (["Versions", "Current", "Resources"], ["Resources"]),
+                (["Versions", "Current", "Modules"], ["Modules"]),
+                (["Versions", "Current", name], [name])
+            ]
+            for l in links:
+                s = os.path.join(*l[0])
+                d = os.path.join(framework_dir, *l[1])
+                os.symlink(s, d)
 
 if __name__ == "__main__":
     folder = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "../.."))
