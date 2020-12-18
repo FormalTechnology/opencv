@@ -50,7 +50,7 @@ typedef unsigned __int64 uint64_t;
 #endif
 
 #if defined(__ARM_NEON__) && !defined(__CUDACC__)
-# include "arm_neon.h"
+# include <arm_neon.h>
 #endif
 
 namespace cvflann
