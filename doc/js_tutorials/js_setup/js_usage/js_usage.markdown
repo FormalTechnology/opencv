@@ -82,7 +82,7 @@ In this tutorial, we just show a cv.Mat on screen. To show a cv.Mat, you need a 
 
 You can use cv.imshow to show cv.Mat on the canvas.
 @code{.js}
-cv.imshow(mat, "outputCanvas");
+cv.imshow("outputCanvas", mat);
 @endcode
 
 Putting all of the steps together, the final index.html is shown below.
@@ -129,7 +129,7 @@ function onOpenCvReady() {
 </html>
 @endcode
 
-@note You have to call delete method of cv.Mat to free memory allocated in Emscripten's heap. Please refer to [Memory management of Emscripten](https://kripken.github.io/emscripten-site/docs/porting/connecting_cpp_and_javascript/embind.html#memory-management) for details.
+@note You have to call delete method of cv.Mat to free memory allocated in Emscripten's heap. Please refer to [Memory management of Emscripten](https://emscripten.org/docs/porting/connecting_cpp_and_javascript/embind.html#memory-management) for details.
 
 Try it
 ------

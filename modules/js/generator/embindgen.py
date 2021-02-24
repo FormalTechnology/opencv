@@ -778,15 +778,13 @@ class JSWrapperGenerator(object):
                     self.bindings+=binding
 
         # generate code for the classes and their methods
-        class_list = list(self.classes.items())
-
-        for name, class_info in class_list:
+        for name, class_info in sorted(self.classes.items()):
             class_bindings = []
             if not name in white_list:
                 continue
 
             # Generate bindings for methods
-            for method_name, method in class_info.methods.items():
+            for method_name, method in sorted(class_info.methods.items()):
                 if method.cname in ignore_list:
                     continue
                 if not method.name in white_list[method.class_name]:
