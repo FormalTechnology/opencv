@@ -73,8 +73,8 @@ class OSXBuilder(Builder):
         shutil.copytree(os.path.join(builddirs[0], "install", "include", "opencv2"), os.path.join(dstdir, "Headers"))
 
         # always rename header includes
-        fwk_header_re = re.compile(r'#\s*include\s+["<]opencv2/([\w./]+\.h[p]{0,2})[">]')
-        local_header_re = re.compile(r'#\s*include\s+"([\w.]+\.h[p]{0,2})"')
+        fwk_header_re = re.compile(r'#\s*include\s+"opencv2/([\w./]+\.h[p]{0,2})"')
+        local_header_re = re.compile(r'#\s*include\s+"(?:\./)?([\w./]+\.h[p]{0,2})"')
 
         header_dir = os.path.join(dstdir, "Headers")
 
