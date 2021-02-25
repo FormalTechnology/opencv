@@ -136,8 +136,9 @@ class OSXBuilder(Builder):
             shutil.copyfile(self.getInfoPlist(builddirs), os.path.join(resdir, "Info.plist"))
 
             # make symbolic links
+            os.symlink("A", os.path.join(framework_dir, "Versions", "Current"))
+
             links = [
-                (["A"], ["Versions", "Current"]),
                 (["Versions", "Current", "Headers"], ["Headers"]),
                 (["Versions", "Current", "Resources"], ["Resources"]),
                 (["Versions", "Current", "Modules"], ["Modules"]),
@@ -145,8 +146,9 @@ class OSXBuilder(Builder):
             ]
             for l in links:
                 s = os.path.join(*l[0])
-                d = os.path.join(framework_dir, *l[1])
-                os.symlink(s, d)
+                if os.path.exists(os.path.join(framework_dir, s)):
+                    d = os.path.join(framework_dir, *l[1])
+                    os.symlink(s, d)
 
 if __name__ == "__main__":
     folder = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "../.."))
